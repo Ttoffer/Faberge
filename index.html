@@ -467,16 +467,18 @@
     const diamond = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.155, 0),
       new THREE.MeshPhysicalMaterial({
-        color: 0xf2fbff,
+        color: 0xf8fbff,
         metalness: 0,
-        roughness: 0.0001,
+        roughness: 0.00005,
         transmission: 1,
-        thickness: 1.25,
-        ior: 2.62,
+        thickness: 1.55,
+        ior: 2.68,
         clearcoat: 1,
         clearcoatRoughness: 0,
-        attenuationColor: 0x9ed2ff,
-        attenuationDistance: 0.2
+        attenuationColor: 0x6f64ff,
+        attenuationDistance: 0.12,
+        sheen: 0.45,
+        sheenColor: 0xcfd5ff
       })
     );
     diamond.name = "heroDiamond";
@@ -793,14 +795,22 @@
       diamondBeam.intensity = ringVisible * (3.2 + 1.2 * Math.sin(t * 2.2));
       beamCone.material.opacity = 0.06 + ringVisible * 0.2;
       const facetFlicker = 0.5 + 0.5 * Math.sin(t * 15.5);
-      const fireHue = (0.02 + (t * 0.1 % 1)) % 1;
-      diamondMat.emissive = new THREE.Color().setHSL(fireHue, 0.98, 0.68);
-      diamondMat.emissiveIntensity = ringVisible * (0.2 + facetFlicker * 0.5);
+      // Restrict to red/blue/violet family for richer "rainbow fire".
+      const firePhase = (t * 0.36) % 1;
+      const fireBand = [0.96, 0.67, 0.76]; // red, blue, violet-ish hue anchors
+      const firePos = firePhase * fireBand.length;
+      const f0 = Math.floor(firePos) % fireBand.length;
+      const f1 = (f0 + 1) % fireBand.length;
+      const fMix = firePos - Math.floor(firePos);
+      const fireHue = THREE.MathUtils.lerp(fireBand[f0], fireBand[f1], fMix);
+      diamondMat.emissive = new THREE.Color().setHSL(fireHue, 1, 0.72);
+      diamondMat.emissiveIntensity = ringVisible * (0.26 + facetFlicker * 0.62);
       for (let i = 0; i < diamondGlintLights.length; i++) {
         const twinkle = 0.35 + 0.65 * Math.sin(t * (10.5 + i * 2.4) + i * 1.9);
-        diamondGlintLights[i].intensity = ringVisible * (1.2 + twinkle * 3.4);
-        const glintHue = (fireHue + i * 0.2 + 0.08 * Math.sin(t * (1.6 + i * 0.4))) % 1;
-        diamondGlintLights[i].color.setHSL(glintHue, 0.95, 0.72);
+        diamondGlintLights[i].intensity = ringVisible * (1.4 + twinkle * 3.9);
+        const offsets = [0.0, -0.29, -0.2]; // red -> blue -> violet accents
+        const glintHue = (fireHue + offsets[i] + 1) % 1;
+        diamondGlintLights[i].color.setHSL(glintHue, 0.98, 0.74);
         diamondGlintLights[i].position.x += Math.sin(t * 2.1 + i) * 0.00035;
         diamondGlintLights[i].position.z += Math.cos(t * 2.4 + i) * 0.00035;
       }
