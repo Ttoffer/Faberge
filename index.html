@@ -486,6 +486,44 @@
     diamond.position.y = 0.2;
     ringGroup.add(diamond);
     const diamondMat = diamond.material;
+
+    // Inner prism cores for "lit from within" fire.
+    const innerDiamondCore = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.11, 0),
+      new THREE.MeshBasicMaterial({
+        color: 0xbfd8ff,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    ringGroup.add(innerDiamondCore);
+
+    const innerDiamondCore2 = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.08, 0),
+      new THREE.MeshBasicMaterial({
+        color: 0xff8fd8,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    ringGroup.add(innerDiamondCore2);
+
+    const diamondEdgeMesh = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.156, 0),
+      new THREE.MeshBasicMaterial({
+        color: 0xeef4ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    ringGroup.add(diamondEdgeMesh);
     const corePulseLight = new THREE.PointLight(0xc7e9ff, 0, 2.8, 1.8);
     corePulseLight.position.copy(diamond.position);
     ringGroup.add(corePulseLight);
@@ -802,9 +840,7 @@
         ? (0.015 + ringVisible * 0.05)
         : (0.06 + ringVisible * 0.2);
       const corePulse = ringVisible * (0.5 + 0.5 * Math.sin(t * 8.2));
-      corePulseLight.intensity = isDesktop
-        ? (1.8 + corePulse * 3.0)
-        : (1.2 + corePulse * 2.2);
+      corePulseLight.intensity = 1.6 + corePulse * 3.2;
       corePulseLight.color.setHSL(0.56 + 0.06 * Math.sin(t * 1.4), 0.96, 0.72);
       const facetFlicker = 0.5 + 0.5 * Math.sin(t * 15.5);
       // Restrict to red/blue/violet family for richer "rainbow fire".
@@ -816,11 +852,26 @@
       const fMix = firePos - Math.floor(firePos);
       const fireHue = THREE.MathUtils.lerp(fireBand[f0], fireBand[f1], fMix);
       diamondMat.emissive = new THREE.Color().setHSL(fireHue, 1, 0.72);
-      const desktopBoost = isDesktop ? 1.35 : 1.0;
-      diamondMat.emissiveIntensity = ringVisible * (0.26 + facetFlicker * 0.62) * desktopBoost;
+      diamondMat.emissiveIntensity = ringVisible * (0.28 + facetFlicker * 0.64);
+
+      // Internal fire cores: stronger sense of color originating inside the stone.
+      innerDiamondCore.position.copy(diamond.position);
+      innerDiamondCore2.position.copy(diamond.position);
+      diamondEdgeMesh.position.copy(diamond.position);
+      innerDiamondCore.rotation.x += 0.045;
+      innerDiamondCore.rotation.y += 0.033;
+      innerDiamondCore2.rotation.x -= 0.032;
+      innerDiamondCore2.rotation.y += 0.05;
+      const fireHue2 = (fireHue + 0.16) % 1;
+      innerDiamondCore.material.color.setHSL(fireHue, 0.95, 0.68);
+      innerDiamondCore2.material.color.setHSL(fireHue2, 0.96, 0.66);
+      innerDiamondCore.material.opacity = ringVisible * (0.06 + facetFlicker * 0.2);
+      innerDiamondCore2.material.opacity = ringVisible * (0.04 + facetFlicker * 0.16);
+      diamondEdgeMesh.material.opacity = ringVisible * (0.06 + facetFlicker * 0.1);
+
       for (let i = 0; i < diamondGlintLights.length; i++) {
         const twinkle = 0.35 + 0.65 * Math.sin(t * (10.5 + i * 2.4) + i * 1.9);
-        diamondGlintLights[i].intensity = ringVisible * (1.4 + twinkle * 3.9) * (isDesktop ? 1.45 : 1.0);
+        diamondGlintLights[i].intensity = ringVisible * (1.6 + twinkle * 4.2);
         const offsets = [0.0, -0.29, -0.2]; // red -> blue -> violet accents
         const glintHue = (fireHue + offsets[i] + 1) % 1;
         diamondGlintLights[i].color.setHSL(glintHue, 0.98, 0.74);
