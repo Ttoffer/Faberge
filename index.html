@@ -850,9 +850,12 @@
       const f0 = Math.floor(firePos) % fireBand.length;
       const f1 = (f0 + 1) % fireBand.length;
       const fMix = firePos - Math.floor(firePos);
-      const fireHue = THREE.MathUtils.lerp(fireBand[f0], fireBand[f1], fMix);
+      const fireHueBase = THREE.MathUtils.lerp(fireBand[f0], fireBand[f1], fMix);
+      const pcHueMod = isDesktop ? (0.08 * Math.sin(t * 3.4) + 0.04 * Math.sin(t * 7.2)) : 0;
+      const fireHue = (fireHueBase + pcHueMod + 1) % 1;
       diamondMat.emissive = new THREE.Color().setHSL(fireHue, 1, 0.72);
-      diamondMat.emissiveIntensity = ringVisible * (0.28 + facetFlicker * 0.64);
+      const pcFireBoost = isDesktop ? (1.18 + 0.22 * Math.sin(t * 4.8)) : 1.0;
+      diamondMat.emissiveIntensity = ringVisible * (0.28 + facetFlicker * 0.64) * pcFireBoost;
 
       // Internal fire cores: stronger sense of color originating inside the stone.
       innerDiamondCore.position.copy(diamond.position);
@@ -865,15 +868,18 @@
       const fireHue2 = (fireHue + 0.16) % 1;
       innerDiamondCore.material.color.setHSL(fireHue, 0.95, 0.68);
       innerDiamondCore2.material.color.setHSL(fireHue2, 0.96, 0.66);
-      innerDiamondCore.material.opacity = ringVisible * (0.06 + facetFlicker * 0.2);
-      innerDiamondCore2.material.opacity = ringVisible * (0.04 + facetFlicker * 0.16);
+      const pcCorePulse = isDesktop ? (1 + 0.32 * Math.sin(t * 6.2) + 0.16 * Math.sin(t * 11.0)) : 1;
+      innerDiamondCore.material.opacity = ringVisible * (0.06 + facetFlicker * 0.2) * pcCorePulse;
+      innerDiamondCore2.material.opacity = ringVisible * (0.04 + facetFlicker * 0.16) * pcCorePulse;
       diamondEdgeMesh.material.opacity = ringVisible * (0.06 + facetFlicker * 0.1);
 
       for (let i = 0; i < diamondGlintLights.length; i++) {
         const twinkle = 0.35 + 0.65 * Math.sin(t * (10.5 + i * 2.4) + i * 1.9);
-        diamondGlintLights[i].intensity = ringVisible * (1.6 + twinkle * 4.2);
+        const pcGlintBoost = isDesktop ? (1.22 + 0.2 * Math.sin(t * (5 + i))) : 1.0;
+        diamondGlintLights[i].intensity = ringVisible * (1.6 + twinkle * 4.2) * pcGlintBoost;
         const offsets = [0.0, -0.29, -0.2]; // red -> blue -> violet accents
-        const glintHue = (fireHue + offsets[i] + 1) % 1;
+        const extraHueJitter = isDesktop ? (0.06 * Math.sin(t * (8.5 + i * 1.4))) : 0;
+        const glintHue = (fireHue + offsets[i] + extraHueJitter + 1) % 1;
         diamondGlintLights[i].color.setHSL(glintHue, 0.98, 0.74);
         diamondGlintLights[i].position.x += Math.sin(t * 2.1 + i) * 0.00035;
         diamondGlintLights[i].position.z += Math.cos(t * 2.4 + i) * 0.00035;
