@@ -295,6 +295,49 @@
     curtainRod.rotation.z = Math.PI / 2;
     world.add(curtainRod);
 
+    // Dry-ice style haze to catch reflections/light beams.
+    const mistLayer = new THREE.Group();
+    world.add(mistLayer);
+
+    function makeMistTexture() {
+      const s = 128;
+      const c = document.createElement("canvas");
+      c.width = s;
+      c.height = s;
+      const ctx = c.getContext("2d");
+      const g = ctx.createRadialGradient(s * 0.5, s * 0.5, 4, s * 0.5, s * 0.5, s * 0.5);
+      g.addColorStop(0, "rgba(220,235,255,0.95)");
+      g.addColorStop(0.35, "rgba(170,200,255,0.45)");
+      g.addColorStop(1, "rgba(130,160,220,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    const mistTexture = makeMistTexture();
+    const mistCount = isAppleMobile ? 6 : 12;
+    const mistPuffs = [];
+    for (let i = 0; i < mistCount; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: mistTexture,
+        transparent: true,
+        opacity: isAppleMobile ? 0.1 : 0.15,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        color: 0xc7dbff
+      });
+      const puff = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.05), mat);
+      const a = (i / mistCount) * Math.PI * 2;
+      const r = 1.15 + (i % 3) * 0.28;
+      puff.position.set(Math.cos(a) * r, -0.88 + (i % 2) * 0.07, -0.7 + Math.sin(a) * r * 0.15);
+      puff.rotation.x = -Math.PI / 2.1;
+      puff.rotation.z = a * 0.35;
+      mistLayer.add(puff);
+      mistPuffs.push(puff);
+    }
+
     // Egg assembly
     const eggRoot = new THREE.Group();
     eggRoot.position.y = 0.72;
@@ -770,6 +813,16 @@
       lowerMarbleLightB.color.setHSL(0.48 + 0.04 * Math.sin(t * 1.7 + 0.9), 0.94, 0.62);
       baseGlow.intensity = 1.3 + marbleGlow * 2.2;
       baseGlow.color.setHSL(0.55 + 0.02 * Math.sin(t * 1.5), 0.94, 0.67);
+
+      // Gentle dry-ice drift near the base to enhance reflections.
+      const mistBoost = 0.35 + ringVisible * 0.65;
+      for (let i = 0; i < mistPuffs.length; i++) {
+        const puff = mistPuffs[i];
+        const drift = t * (0.08 + i * 0.006);
+        puff.position.x += Math.sin(drift + i) * 0.0009;
+        puff.position.z += Math.cos(drift * 1.2 + i) * 0.0007;
+        puff.material.opacity = (isAppleMobile ? 0.07 : 0.11) + mistBoost * (0.05 + 0.02 * Math.sin(t * 1.6 + i));
+      }
 
       // Rainbow reflections orbit and pulse from the diamond center.
       const cx = ringGroup.position.x;
