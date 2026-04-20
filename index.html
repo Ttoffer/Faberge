@@ -486,6 +486,9 @@
     diamond.position.y = 0.2;
     ringGroup.add(diamond);
     const diamondMat = diamond.material;
+    const corePulseLight = new THREE.PointLight(0xc7e9ff, 0, 2.8, 1.8);
+    corePulseLight.position.copy(diamond.position);
+    ringGroup.add(corePulseLight);
 
     // Micro-glint lights to make diamond facets sparkle.
     const diamondGlintLights = [
@@ -793,8 +796,16 @@
 
       const sparkle = ringVisible * (0.4 + 0.6 * Math.sin(t * 9.8));
       jewelLight.intensity = 8.0 * sparkle;
-      diamondBeam.intensity = ringVisible * (3.2 + 1.2 * Math.sin(t * 2.2));
-      beamCone.material.opacity = 0.06 + ringVisible * 0.2;
+      const beamPulse = ringVisible * (3.2 + 1.2 * Math.sin(t * 2.2));
+      diamondBeam.intensity = isDesktop ? beamPulse * 0.28 : beamPulse;
+      beamCone.material.opacity = isDesktop
+        ? (0.015 + ringVisible * 0.05)
+        : (0.06 + ringVisible * 0.2);
+      const corePulse = ringVisible * (0.5 + 0.5 * Math.sin(t * 8.2));
+      corePulseLight.intensity = isDesktop
+        ? (1.8 + corePulse * 3.0)
+        : (1.2 + corePulse * 2.2);
+      corePulseLight.color.setHSL(0.56 + 0.06 * Math.sin(t * 1.4), 0.96, 0.72);
       const facetFlicker = 0.5 + 0.5 * Math.sin(t * 15.5);
       // Restrict to red/blue/violet family for richer "rainbow fire".
       const firePhase = (t * 0.36) % 1;
