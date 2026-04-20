@@ -467,7 +467,7 @@
     const diamond = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.155, 0),
       new THREE.MeshPhysicalMaterial({
-        color: 0xf7feff,
+        color: 0xf2fbff,
         metalness: 0,
         roughness: 0.0001,
         transmission: 1,
@@ -475,8 +475,8 @@
         ior: 2.62,
         clearcoat: 1,
         clearcoatRoughness: 0,
-        attenuationColor: 0xe6f9ff,
-        attenuationDistance: 0.35
+        attenuationColor: 0x9ed2ff,
+        attenuationDistance: 0.2
       })
     );
     diamond.name = "heroDiamond";
@@ -793,7 +793,8 @@
       diamondBeam.intensity = ringVisible * (3.2 + 1.2 * Math.sin(t * 2.2));
       beamCone.material.opacity = 0.06 + ringVisible * 0.2;
       const facetFlicker = 0.5 + 0.5 * Math.sin(t * 15.5);
-      diamondMat.emissive = new THREE.Color(0x9bcfff);
+      const hue = 0.55 + 0.06 * Math.sin(t * 0.85);
+      diamondMat.emissive = new THREE.Color().setHSL(hue, 0.95, 0.66);
       diamondMat.emissiveIntensity = ringVisible * (0.14 + facetFlicker * 0.38);
       for (let i = 0; i < diamondGlintLights.length; i++) {
         const twinkle = 0.35 + 0.65 * Math.sin(t * (10.5 + i * 2.4) + i * 1.9);
