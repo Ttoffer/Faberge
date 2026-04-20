@@ -125,10 +125,11 @@
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const isAppleMobile = isIOS;
+    const isDesktop = !isAppleMobile;
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     const isHighEndApple = isAppleMobile && (window.devicePixelRatio >= 3 || Math.max(window.screen.width, window.screen.height) >= 1000);
-    renderer.setPixelRatio(isAppleMobile ? (isHighEndApple ? 1.5 : 1) : Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(isAppleMobile ? (isHighEndApple ? 1.75 : 1.2) : Math.min(window.devicePixelRatio, 2.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const scene = new THREE.Scene();
@@ -711,9 +712,9 @@
       renderer.setSize(w, h, false);
       if (isAppleMobile) {
         const isHighEndAppleNow = window.devicePixelRatio >= 3 || Math.max(window.screen.width, window.screen.height) >= 1000;
-        renderer.setPixelRatio(isHighEndAppleNow ? 1.5 : 1);
+        renderer.setPixelRatio(isHighEndAppleNow ? 1.75 : 1.2);
       } else {
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
       }
       camera.aspect = w / h;
 
@@ -804,10 +805,11 @@
       const fMix = firePos - Math.floor(firePos);
       const fireHue = THREE.MathUtils.lerp(fireBand[f0], fireBand[f1], fMix);
       diamondMat.emissive = new THREE.Color().setHSL(fireHue, 1, 0.72);
-      diamondMat.emissiveIntensity = ringVisible * (0.26 + facetFlicker * 0.62);
+      const desktopBoost = isDesktop ? 1.35 : 1.0;
+      diamondMat.emissiveIntensity = ringVisible * (0.26 + facetFlicker * 0.62) * desktopBoost;
       for (let i = 0; i < diamondGlintLights.length; i++) {
         const twinkle = 0.35 + 0.65 * Math.sin(t * (10.5 + i * 2.4) + i * 1.9);
-        diamondGlintLights[i].intensity = ringVisible * (1.4 + twinkle * 3.9);
+        diamondGlintLights[i].intensity = ringVisible * (1.4 + twinkle * 3.9) * (isDesktop ? 1.45 : 1.0);
         const offsets = [0.0, -0.29, -0.2]; // red -> blue -> violet accents
         const glintHue = (fireHue + offsets[i] + 1) % 1;
         diamondGlintLights[i].color.setHSL(glintHue, 0.98, 0.74);
