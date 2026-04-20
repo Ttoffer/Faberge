@@ -120,6 +120,7 @@
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
     camera.position.set(0, 1.8, 6.4);
+    const cameraTarget = new THREE.Vector3(0, 0.72, 0);
 
     const world = new THREE.Group();
     scene.add(world);
@@ -592,6 +593,17 @@
       const h = window.innerHeight;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
+
+      // Keep the egg centered on narrow mobile portrait screens.
+      if (camera.aspect < 0.8) {
+        camera.position.set(0, 2.15, 7.5);
+      } else if (camera.aspect < 1.2) {
+        camera.position.set(0, 1.95, 6.9);
+      } else {
+        camera.position.set(0, 1.8, 6.4);
+      }
+
+      camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
     }
     window.addEventListener("resize", onResize);
@@ -615,6 +627,7 @@
 
       world.rotation.y += 0.00315;
       stand.rotation.y += 0.00055;
+      camera.lookAt(cameraTarget);
 
       if (t > 6.5) {
         const progress = Math.min(1, (t - 6.5) / 6.2);
