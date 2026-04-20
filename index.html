@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="apple-mobile-web-app-title" content="Faberge" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <title>Faberge Egg | Hal AI by CJF</title>
+  <style>
+    :root {
+      --bg: #070910;
+      --panel: #0f1530cc;
+      --text: #e7ecff;
+      --muted: #a9b4e2;
+      --accent: #ffd56a;
+      --line: #2a345f;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 20% -10%, #1c2c61, transparent 70%),
+        radial-gradient(900px 600px at 85% -20%, #4a1f4f, transparent 65%),
+        linear-gradient(180deg, #0a0e1d 0%, #070910 65%, #05070d 100%);
+      overflow: hidden;
+    }
+    .brand {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 20;
+      width: min(300px, 52vw);
+      border-radius: 10px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    }
+    .ui {
+      position: fixed;
+      right: 16px;
+      top: 16px;
+      z-index: 20;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      width: min(330px, 88vw);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 17px;
+      letter-spacing: 0.2px;
+    }
+    p {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid #6f7ec7;
+      color: #0a1232;
+      background: linear-gradient(180deg, #ffe7a1, #ffc853);
+      font-weight: 700;
+      padding: 9px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn:hover { filter: brightness(1.06); }
+    .status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #cfd8ff;
+      min-height: 1.2em;
+    }
+    #scene {
+      position: fixed;
+      inset: 0;
+    }
+  </style>
+</head>
+<body>
+  <img class="brand" src="header-logo.svg" alt="Hal AI by CJF" />
+  <div class="ui">
+    <h1>Imperial Faberge Egg</h1>
+    <p>
+      The egg and stand rotate slowly. After 5 seconds, the egg opens and reveals an ornate
+      interior with a sparkling diamond ring.
+    </p>
+    <button id="resetBtn" class="btn" type="button">Reset Animation</button>
+    <div class="status" id="status">Closed</div>
+  </div>
+  <canvas id="scene" aria-label="3D Faberge Egg animation"></canvas>
+
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+
+    const canvas = document.getElementById("scene");
+    const statusEl = document.getElementById("status");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x070910, 9, 22);
+
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+    camera.position.set(0, 1.8, 6.4);
+
+    const world = new THREE.Group();
+    scene.add(world);
+
+    const ambient = new THREE.AmbientLight(0x8fa5ff, 0.62);
+    scene.add(ambient);
+
+    const key = new THREE.DirectionalLight(0xffe5b8, 1.9);
+    key.position.set(4, 6, 5);
+    scene.add(key);
+
+    const rim = new THREE.PointLight(0x89d2ff, 1.8, 22, 2.1);
+    rim.position.set(-3, 2.3, -2);
+    scene.add(rim);
+
+    const jewelLight = new THREE.PointLight(0xffffff, 0, 8.5, 1.6);
+    jewelLight.position.set(0, 1.9, 0);
+    scene.add(jewelLight);
+
+    const fill = new THREE.PointLight(0x856cff, 0.72, 24, 2.3);
+    fill.position.set(2.6, 1.8, -3.8);
+    scene.add(fill);
+
+    // Focused beam on the ring reveal.
+    const prismTarget = new THREE.Object3D();
+    prismTarget.position.set(0, 1.2, 0);
+    scene.add(prismTarget);
+    const diamondBeam = new THREE.SpotLight(0xffffff, 0, 20, 0.22, 0.5, 1);
+    diamondBeam.position.set(0, 5.4, 0.3);
+    diamondBeam.target = prismTarget;
+    scene.add(diamondBeam);
+    scene.add(diamondBeam.target);
+
+    const beamCone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.46, 4.2, 40, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0xeef7ff,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      })
+    );
+    beamCone.position.set(0, 3.25, 0.15);
+    beamCone.rotation.x = Math.PI;
+    scene.add(beamCone);
+
+    // Spectral reflections around the diamond.
+    const rainbowLights = [
+      new THREE.PointLight(0xff3c3c, 0, 2.6, 2),
+      new THREE.PointLight(0xff9f1c, 0, 2.6, 2),
+      new THREE.PointLight(0xfff14a, 0, 2.6, 2),
+      new THREE.PointLight(0x54ff77, 0, 2.6, 2),
+      new THREE.PointLight(0x44b0ff, 0, 2.6, 2),
+      new THREE.PointLight(0xa56dff, 0, 2.6, 2)
+    ];
+    rainbowLights.forEach((l) => scene.add(l));
+
+    // Wider spectral spill to paint curtains and floor.
+    const rainbowSpillLights = [
+      new THREE.PointLight(0xff6666, 0, 8.5, 2),
+      new THREE.PointLight(0xffb35a, 0, 8.5, 2),
+      new THREE.PointLight(0xffef7c, 0, 8.5, 2),
+      new THREE.PointLight(0x79ff98, 0, 8.5, 2),
+      new THREE.PointLight(0x6fc3ff, 0, 8.5, 2),
+      new THREE.PointLight(0xb388ff, 0, 8.5, 2)
+    ];
+    rainbowSpillLights.forEach((l) => scene.add(l));
+
+    // Plinth and stand
+    const stand = new THREE.Group();
+    world.add(stand);
+
+    const baseProfile = [
+      new THREE.Vector2(0.0, 0.00),
+      new THREE.Vector2(1.18, 0.00),
+      new THREE.Vector2(1.28, 0.10),
+      new THREE.Vector2(0.92, 0.19),
+      new THREE.Vector2(0.82, 0.31),
+      new THREE.Vector2(0.97, 0.39),
+      new THREE.Vector2(0.68, 0.50),
+      new THREE.Vector2(0.2, 0.50)
+    ];
+    const baseGeo = new THREE.LatheGeometry(baseProfile, 96);
+    const brass = new THREE.MeshPhysicalMaterial({
+      color: 0xe0bc68,
+      metalness: 0.95,
+      roughness: 0.14,
+      clearcoat: 0.65
+    });
+    const base = new THREE.Mesh(baseGeo, brass);
+    base.position.y = -0.75;
+    stand.add(base);
+
+    const crown = new THREE.Mesh(
+      new THREE.TorusGeometry(0.66, 0.052, 24, 120),
+      new THREE.MeshPhysicalMaterial({ color: 0xe6c77a, metalness: 0.95, roughness: 0.14, clearcoat: 0.4 })
+    );
+    crown.position.y = 0.02;
+    stand.add(crown);
+
+    const pedestalTop = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.51, 0.6, 0.09, 64),
+      new THREE.MeshPhysicalMaterial({ color: 0xe7c977, metalness: 0.97, roughness: 0.12, clearcoat: 0.6 })
+    );
+    pedestalTop.position.y = 0.1;
+    stand.add(pedestalTop);
+
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x0e1530, metalness: 0.15, roughness: 0.86 });
+    const floor = new THREE.Mesh(
+      new THREE.CylinderGeometry(4.8, 5.4, 0.18, 96),
+      floorMat
+    );
+    floor.position.y = -1.34;
+    floor.receiveShadow = false;
+    world.add(floor);
+
+    // Velvet curtain backdrop
+    const curtainMat = new THREE.MeshStandardMaterial({
+      color: 0x3f0821,
+      roughness: 0.9,
+      metalness: 0.06
+    });
+    const curtainBack = new THREE.Mesh(new THREE.PlaneGeometry(10, 7), curtainMat);
+    curtainBack.position.set(0, 1.5, -4.7);
+    world.add(curtainBack);
+
+    const curtainLeft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.9, 0.9, 5.8, 28, 1, false, 0, Math.PI),
+      curtainMat
+    );
+    curtainLeft.position.set(-3.1, 1.35, -4.35);
+    curtainLeft.rotation.y = Math.PI / 2;
+    world.add(curtainLeft);
+
+    const curtainRight = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.9, 0.9, 5.8, 28, 1, false, 0, Math.PI),
+      curtainMat
+    );
+    curtainRight.position.set(3.1, 1.35, -4.35);
+    curtainRight.rotation.y = -Math.PI / 2;
+    world.add(curtainRight);
+
+    const curtainRod = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, 7.2, 28),
+      new THREE.MeshPhysicalMaterial({ color: 0xcfb167, metalness: 0.95, roughness: 0.2 })
+    );
+    curtainRod.position.set(0, 4.2, -4.2);
+    curtainRod.rotation.z = Math.PI / 2;
+    world.add(curtainRod);
+
+    // Egg assembly
+    const eggRoot = new THREE.Group();
+    eggRoot.position.y = 0.72;
+    world.add(eggRoot);
+
+    const eggShell = new THREE.MeshPhysicalMaterial({
+      color: 0x5a1042,
+      metalness: 0.72,
+      roughness: 0.14,
+      clearcoat: 1,
+      clearcoatRoughness: 0.05,
+      iridescence: 0.35
+    });
+    const goldTrim = new THREE.MeshPhysicalMaterial({
+      color: 0xf0d387,
+      metalness: 1,
+      roughness: 0.09,
+      emissive: 0x5a4108,
+      emissiveIntensity: 0.34
+    });
+
+    const topHalf = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 96, 64, 0, Math.PI * 2, 0, Math.PI / 2),
+      eggShell
+    );
+    const bottomHalf = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 96, 64, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+      eggShell
+    );
+    eggRoot.add(topHalf);
+    eggRoot.add(bottomHalf);
+
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.026, 16, 140), goldTrim);
+    seam.rotation.x = Math.PI / 2;
+    eggRoot.add(seam);
+
+    const verticalBand = new THREE.Mesh(new THREE.TorusGeometry(0.99, 0.026, 14, 140), goldTrim);
+    eggRoot.add(verticalBand);
+
+    const topOrnament = new THREE.Mesh(new THREE.SphereGeometry(0.12, 28, 24), goldTrim);
+    topOrnament.position.y = 1.04;
+    eggRoot.add(topOrnament);
+
+    const imperialCrown = new THREE.Mesh(
+      new THREE.ConeGeometry(0.095, 0.2, 28),
+      goldTrim
+    );
+    imperialCrown.position.y = 1.2;
+    eggRoot.add(imperialCrown);
+
+    const enamelBlue = new THREE.MeshPhysicalMaterial({
+      color: 0x123b8c,
+      metalness: 0.3,
+      roughness: 0.16,
+      clearcoat: 1,
+      clearcoatRoughness: 0.06
+    });
+    const enamelRed = new THREE.MeshPhysicalMaterial({
+      color: 0x6e1224,
+      metalness: 0.28,
+      roughness: 0.15,
+      clearcoat: 1,
+      clearcoatRoughness: 0.06
+    });
+
+    const cloisonneBandA = new THREE.Mesh(new THREE.TorusGeometry(0.92, 0.03, 16, 180), enamelBlue);
+    cloisonneBandA.rotation.x = Math.PI / 2;
+    cloisonneBandA.position.y = 0.34;
+    eggRoot.add(cloisonneBandA);
+
+    const cloisonneBandB = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.028, 16, 180), enamelRed);
+    cloisonneBandB.rotation.x = Math.PI / 2;
+    cloisonneBandB.position.y = -0.31;
+    eggRoot.add(cloisonneBandB);
+
+    // Filigree scrolls for engraved imperial detail
+    const filigreeMat = new THREE.MeshPhysicalMaterial({
+      color: 0xf2dc9f,
+      metalness: 1,
+      roughness: 0.12,
+      clearcoat: 0.55
+    });
+    for (let i = 0; i < 8; i++) {
+      const bandAngle = (i / 8) * Math.PI * 2;
+      const filigree = new THREE.Mesh(
+        new THREE.TorusGeometry(0.84, 0.012, 10, 120),
+        filigreeMat
+      );
+      filigree.rotation.y = bandAngle;
+      filigree.rotation.x = Math.PI / 2 + Math.sin(bandAngle * 2) * 0.2;
+      filigree.position.y = Math.sin(bandAngle * 2.5) * 0.12;
+      eggRoot.add(filigree);
+    }
+
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const leaf = new THREE.Mesh(
+        new THREE.TorusGeometry(0.16, 0.01, 8, 40, Math.PI * 1.3),
+        filigreeMat
+      );
+      leaf.position.set(Math.cos(a) * 0.73, 0.02 + Math.sin(a * 3) * 0.05, Math.sin(a) * 0.73);
+      leaf.lookAt(0, leaf.position.y, 0);
+      leaf.rotation.z += Math.PI / 2;
+      eggRoot.add(leaf);
+    }
+
+    // Interior velvet
+    const velvet = new THREE.Mesh(
+      new THREE.SphereGeometry(0.88, 64, 40, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x0f311f, roughness: 0.82, metalness: 0.05 })
+    );
+    velvet.position.y = -0.01;
+    eggRoot.add(velvet);
+
+    // Ring centrepiece
+    const ringGroup = new THREE.Group();
+    ringGroup.position.set(0, 0.25, 0);
+    eggRoot.add(ringGroup);
+
+    const ringBand = new THREE.Mesh(
+      new THREE.TorusGeometry(0.24, 0.045, 28, 72),
+      new THREE.MeshPhysicalMaterial({ color: 0xffe9b3, metalness: 1, roughness: 0.08, clearcoat: 1 })
+    );
+    ringBand.rotation.x = Math.PI / 2;
+    ringGroup.add(ringBand);
+
+    const diamond = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.12, 0),
+      new THREE.MeshPhysicalMaterial({
+        color: 0xf4fdff,
+        metalness: 0,
+        roughness: 0.001,
+        transmission: 1,
+        thickness: 1.15,
+        ior: 2.58,
+        clearcoat: 1,
+        clearcoatRoughness: 0,
+        attenuationColor: 0xd8f6ff,
+        attenuationDistance: 0.45
+      })
+    );
+    diamond.position.y = 0.2;
+    ringGroup.add(diamond);
+
+    // Soft inner light for the marble ring.
+    const innerMarbleLight = new THREE.PointLight(0x9de9ff, 0.7, 2.4, 2);
+    innerMarbleLight.position.set(0, 0.2, 0);
+    stand.add(innerMarbleLight);
+
+    // Extra underlight so lower marbles also glow.
+    const lowerMarbleLight = new THREE.PointLight(0x7bc8ff, 0.8, 3.2, 1.7);
+    lowerMarbleLight.position.set(0, -0.68, 0);
+    stand.add(lowerMarbleLight);
+
+    const throne = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.22, 0.16, 24),
+      new THREE.MeshPhysicalMaterial({ color: 0xf1d38f, metalness: 0.98, roughness: 0.09, clearcoat: 0.6 })
+    );
+    throne.position.y = -0.02;
+    ringGroup.add(throne);
+
+    const marbleTextureCache = new Map();
+
+    function makeMarbleTexture(hexColor) {
+      if (marbleTextureCache.has(hexColor)) return marbleTextureCache.get(hexColor);
+      const size = 128;
+      const cvs = document.createElement("canvas");
+      cvs.width = size;
+      cvs.height = size;
+      const ctx = cvs.getContext("2d");
+
+      // Base tint.
+      const baseGrad = ctx.createRadialGradient(size * 0.35, size * 0.35, size * 6 / 100, size * 0.6, size * 0.6, size * 0.72);
+      baseGrad.addColorStop(0, "#ffffff");
+      baseGrad.addColorStop(0.32, hexColor);
+      baseGrad.addColorStop(1, "#120a2a");
+      ctx.fillStyle = baseGrad;
+      ctx.fillRect(0, 0, size, size);
+
+      // Swirling veins.
+      ctx.lineWidth = 5;
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = "#ffffff";
+      for (let i = 0; i < 7; i++) {
+        ctx.beginPath();
+        for (let x = 0; x <= size; x += 4) {
+          const y = size * 0.5 + Math.sin((x / size) * Math.PI * (2.3 + i * 0.35) + i * 0.8) * (11 + i * 2);
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.translate(size * 0.02, size * 0.018);
+        ctx.rotate(0.08);
+      }
+
+      // Curved tinted streaks to look like trapped swirls.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 0.28;
+      ctx.strokeStyle = hexColor;
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc(size * (0.32 + i * 0.11), size * 0.56, size * (0.08 + i * 0.035), 0.35, 4.8);
+        ctx.stroke();
+      }
+
+      const tex = new THREE.CanvasTexture(cvs);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.needsUpdate = true;
+      marbleTextureCache.set(hexColor, tex);
+      return tex;
+    }
+
+    // Jewels on the shell (same glass marble style, but shinier).
+    const shellGemMats = [];
+    const shellGems = [];
+    const jewelColors = ["#29e0ff", "#7f4dff", "#3cff9d", "#ff447a"];
+    for (let i = 0; i < 24; i++) {
+      const angle = (i / 24) * Math.PI * 2;
+      const jMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        map: makeMarbleTexture(jewelColors[i % jewelColors.length]),
+        emissive: 0x121935,
+        emissiveIntensity: 0.32,
+        roughness: 0.005,
+        metalness: 0.0,
+        clearcoat: 1,
+        clearcoatRoughness: 0.0,
+        transparent: true,
+        opacity: 0.76,
+        transmission: 0.93,
+        thickness: 0.75,
+        ior: 1.53
+      });
+      const jewel = new THREE.Mesh(new THREE.SphereGeometry(0.052, 24, 18), jMat);
+      jewel.position.set(Math.cos(angle) * 0.79, 0.06 + Math.sin(angle * 3) * 0.05, Math.sin(angle) * 0.79);
+      eggRoot.add(jewel);
+      shellGemMats.push(jMat);
+      shellGems.push(jewel);
+    }
+
+    // Inner crown marbles: glass-like, partially transparent, with swirling colour.
+    const crownGemMats = [];
+    const crownGems = [];
+    const crownGemPalette = ["#00d9ff", "#ff5ad6", "#7f6dff", "#20ffb0", "#ffaa2b", "#ff3f78"];
+
+    for (let i = 0; i < 20; i++) {
+      const a = (i / 20) * Math.PI * 2;
+      const tint = crownGemPalette[i % crownGemPalette.length];
+      const gemMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        map: makeMarbleTexture(tint),
+        emissive: 0x10142a,
+        emissiveIntensity: 0.28,
+        roughness: 0.002,
+        metalness: 0.0,
+        clearcoat: 1,
+        clearcoatRoughness: 0.0,
+        transparent: true,
+        opacity: 0.8,
+        transmission: 0.95,
+        thickness: 0.75,
+        ior: 1.54
+      });
+      const gemGeo = new THREE.SphereGeometry(0.047, 26, 20);
+      const pearl = new THREE.Mesh(
+        gemGeo,
+        gemMat
+      );
+      pearl.position.set(Math.cos(a) * 0.78, 0.055, Math.sin(a) * 0.78);
+      pearl.rotation.set(a * 0.7, a * 1.3, a * 0.4);
+      stand.add(pearl);
+      crownGemMats.push(gemMat);
+      crownGems.push(pearl);
+    }
+
+    // Gold tassel cords to frame the scene
+    const cordMat = new THREE.MeshPhysicalMaterial({ color: 0xf0cf86, metalness: 0.97, roughness: 0.14, clearcoat: 0.5 });
+    for (let i = 0; i < 3; i++) {
+      const leftCord = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 3.2, 10), cordMat);
+      leftCord.position.set(-2.5 + i * 0.22, 1.9, -3.9);
+      world.add(leftCord);
+
+      const rightCord = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 3.2, 10), cordMat);
+      rightCord.position.set(2.5 - i * 0.22, 1.9, -3.9);
+      world.add(rightCord);
+    }
+
+    function onResize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener("resize", onResize);
+    onResize();
+
+    let startTime = performance.now();
+    let openAmount = 0;
+
+    function resetAnimation() {
+      startTime = performance.now();
+      openAmount = 0;
+      topHalf.rotation.x = 0;
+      topHalf.position.z = 0;
+      topHalf.position.y = 0;
+      statusEl.textContent = "Closed";
+    }
+    resetBtn.addEventListener("click", resetAnimation);
+
+    function animate(now) {
+      const t = (now - startTime) / 1000;
+
+      world.rotation.y += 0.00315;
+      stand.rotation.y += 0.00055;
+
+      if (t > 6.5) {
+        const progress = Math.min(1, (t - 6.5) / 6.2);
+        openAmount = progress * progress * (3 - 2 * progress); // smoothstep
+      } else {
+        openAmount = 0;
+      }
+
+      const lidAngle = -openAmount * Math.PI * 0.92;
+      topHalf.rotation.x = lidAngle;
+      topHalf.position.z = openAmount * 0.18;
+      topHalf.position.y = openAmount * 0.05;
+
+      const ringVisible = Math.max(0, (openAmount - 0.15) / 0.85);
+      ringGroup.position.y = 0.25 + ringVisible * 0.16;
+      ringGroup.rotation.y += 0.01 + ringVisible * 0.02;
+      diamond.rotation.y += 0.03;
+      diamond.rotation.x += 0.012;
+
+      const sparkle = ringVisible * (0.4 + 0.6 * Math.sin(t * 9.8));
+      jewelLight.intensity = 6.4 * sparkle;
+      diamondBeam.intensity = ringVisible * (2.2 + 0.8 * Math.sin(t * 2.2));
+      beamCone.material.opacity = 0.06 + ringVisible * 0.2;
+
+      const marbleGlow = 0.6 + 0.4 * Math.sin(t * 2.6);
+      innerMarbleLight.intensity = 0.9 + marbleGlow * 1.2;
+      innerMarbleLight.color.setHSL(0.53 + 0.05 * Math.sin(t * 0.8), 0.95, 0.7);
+      lowerMarbleLight.intensity = 0.7 + marbleGlow * 1.5;
+      lowerMarbleLight.color.setHSL(0.57 + 0.04 * Math.sin(t * 1.1 + 1.2), 0.92, 0.62);
+
+      // Rainbow reflections orbit and pulse from the diamond center.
+      const cx = ringGroup.position.x;
+      const cy = ringGroup.position.y + 1.14;
+      const cz = ringGroup.position.z;
+      for (let i = 0; i < rainbowLights.length; i++) {
+        const a = t * 1.5 + (i / rainbowLights.length) * Math.PI * 2;
+        const radius = 0.38 + 0.08 * Math.sin(t * 2.8 + i);
+        rainbowLights[i].position.set(
+          cx + Math.cos(a) * radius,
+          cy + 0.02 * Math.sin(t * 5 + i * 0.8),
+          cz + Math.sin(a) * radius
+        );
+        rainbowLights[i].intensity = ringVisible * (0.55 + 0.9 * (0.5 + 0.5 * Math.sin(t * 6.2 + i)));
+      }
+
+      // Broader spectral spill around scene surfaces.
+      for (let i = 0; i < rainbowSpillLights.length; i++) {
+        const phase = t * 0.92 + (i / rainbowSpillLights.length) * Math.PI * 2;
+        const spread = 1.35 + 0.22 * Math.sin(t * 1.8 + i * 0.7);
+        rainbowSpillLights[i].position.set(
+          cx + Math.cos(phase) * spread,
+          cy - 0.58 + 0.14 * Math.sin(t * 2.3 + i),
+          cz + Math.sin(phase) * spread
+        );
+        rainbowSpillLights[i].intensity = ringVisible * (0.38 + 0.42 * (0.5 + 0.5 * Math.sin(t * 2.6 + i)));
+      }
+
+      // Material glow response to prism reflections.
+      const spectralWash = ringVisible * (0.5 + 0.5 * Math.sin(t * 1.4));
+      floorMat.emissive.setRGB(0.02 + spectralWash * 0.05, 0.01 + spectralWash * 0.025, 0.03 + spectralWash * 0.07);
+      floorMat.emissiveIntensity = 0.22 + spectralWash * 0.22;
+      curtainMat.emissive.setRGB(0.05 + spectralWash * 0.07, 0.015 + spectralWash * 0.03, 0.03 + spectralWash * 0.09);
+      curtainMat.emissiveIntensity = 0.28 + spectralWash * 0.28;
+
+      // Shell and crown marbles shimmer at different phases.
+      for (let i = 0; i < shellGemMats.length; i++) {
+        const twinkle = 0.44 + 0.56 * Math.sin(t * 5.2 + i * 0.55);
+        shellGemMats[i].emissiveIntensity = 0.18 + twinkle * 0.48;
+        shellGems[i].rotation.y += 0.009 + i * 0.00035;
+      }
+
+      for (let i = 0; i < crownGemMats.length; i++) {
+        const twinkle = 0.38 + 0.62 * Math.sin(t * 4.4 + i * 0.9);
+        crownGemMats[i].emissiveIntensity = 0.16 + twinkle * 0.62;
+        crownGems[i].rotation.y += 0.013 + i * 0.0006;
+        crownGems[i].rotation.x += 0.006 + i * 0.0003;
+      }
+
+      if (openAmount === 0) statusEl.textContent = "Closed";
+      else if (openAmount < 1) statusEl.textContent = "Opening...";
+      else statusEl.textContent = "Revealed";
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    resetAnimation();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
