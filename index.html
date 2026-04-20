@@ -306,9 +306,9 @@
       c.height = s;
       const ctx = c.getContext("2d");
       const g = ctx.createRadialGradient(s * 0.5, s * 0.5, 4, s * 0.5, s * 0.5, s * 0.5);
-      g.addColorStop(0, "rgba(220,235,255,0.95)");
-      g.addColorStop(0.35, "rgba(170,200,255,0.45)");
-      g.addColorStop(1, "rgba(130,160,220,0)");
+      g.addColorStop(0, "rgba(255,255,255,0.98)");
+      g.addColorStop(0.35, "rgba(255,255,255,0.55)");
+      g.addColorStop(1, "rgba(255,255,255,0)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, s, s);
       const tex = new THREE.CanvasTexture(c);
@@ -323,10 +323,10 @@
       const mat = new THREE.MeshBasicMaterial({
         map: mistTexture,
         transparent: true,
-        opacity: isAppleMobile ? 0.1 : 0.15,
+        opacity: isAppleMobile ? 0.13 : 0.18,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
-        color: 0xc7dbff
+        color: 0xffffff
       });
       const puff = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.05), mat);
       const a = (i / mistCount) * Math.PI * 2;
@@ -815,13 +815,15 @@
       baseGlow.color.setHSL(0.55 + 0.02 * Math.sin(t * 1.5), 0.94, 0.67);
 
       // Gentle dry-ice drift near the base to enhance reflections.
-      const mistBoost = 0.35 + ringVisible * 0.65;
+      const mistBoost = 0.42 + ringVisible * 0.58;
       for (let i = 0; i < mistPuffs.length; i++) {
         const puff = mistPuffs[i];
-        const drift = t * (0.08 + i * 0.006);
-        puff.position.x += Math.sin(drift + i) * 0.0009;
-        puff.position.z += Math.cos(drift * 1.2 + i) * 0.0007;
-        puff.material.opacity = (isAppleMobile ? 0.07 : 0.11) + mistBoost * (0.05 + 0.02 * Math.sin(t * 1.6 + i));
+        const spin = t * (0.12 + i * 0.004);
+        const radius = 1.05 + (i % 3) * 0.24 + 0.08 * Math.sin(t * 0.55 + i);
+        puff.position.x = Math.cos(spin + i * 0.7) * radius;
+        puff.position.z = -0.7 + Math.sin(spin + i * 0.9) * radius * 0.2;
+        puff.rotation.z += 0.0012 + i * 0.00005;
+        puff.material.opacity = (isAppleMobile ? 0.1 : 0.14) + mistBoost * (0.055 + 0.028 * Math.sin(t * 1.25 + i * 0.6));
       }
 
       // Rainbow reflections orbit and pulse from the diamond center.
