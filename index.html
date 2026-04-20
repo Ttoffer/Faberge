@@ -428,6 +428,7 @@
         attenuationDistance: 0.45
       })
     );
+    diamond.name = "heroDiamond";
     diamond.position.y = 0.2;
     ringGroup.add(diamond);
 
@@ -462,6 +463,21 @@
         const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
         mats.forEach((m) => {
           if (!m) return;
+          const isHeroDiamond = obj === diamond || obj.name === "heroDiamond";
+          if (isHeroDiamond) {
+            if ("transmission" in m) m.transmission = 1;
+            if ("thickness" in m) m.thickness = 1.15;
+            if ("ior" in m) m.ior = 2.58;
+            if ("roughness" in m) m.roughness = 0.001;
+            if ("clearcoat" in m) m.clearcoat = 1;
+            if ("clearcoatRoughness" in m) m.clearcoatRoughness = 0;
+            if ("attenuationDistance" in m) m.attenuationDistance = 0.45;
+            if ("attenuationColor" in m) m.attenuationColor = new THREE.Color(0xd8f6ff);
+            m.transparent = true;
+            m.opacity = 1;
+            m.needsUpdate = true;
+            return;
+          }
           if ("transmission" in m) m.transmission = Math.min(m.transmission || 0, 0.25);
           if ("thickness" in m) m.thickness = 0;
           if ("iridescence" in m) m.iridescence = 0;
