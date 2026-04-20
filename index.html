@@ -121,9 +121,10 @@
     const resetBtn = document.getElementById("resetBtn");
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isAppleMobile = isIOS;
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(isAppleMobile ? 1 : Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const scene = new THREE.Scene();
@@ -441,11 +442,19 @@
     stand.add(lowerMarbleLight);
 
     // iPhone/iPad fallback: reduce advanced lighting/material cost for stable rendering.
-    if (isIOS) {
+    if (isAppleMobile) {
       fill.intensity = 0.45;
       rim.intensity = 1.15;
       diamondBeam.intensity = 0.9;
       beamCone.material.opacity = 0.04;
+      scene.fog = null;
+      world.position.set(0, -0.03, 0);
+
+      // Trim distant geometry on Apple mobile to avoid off-frame composition issues.
+      curtainBack.visible = false;
+      curtainLeft.visible = false;
+      curtainRight.visible = false;
+      curtainRod.visible = false;
       for (let i = activeRainbowCount; i < rainbowLights.length; i++) rainbowLights[i].intensity = 0;
       for (let i = activeSpillCount; i < rainbowSpillLights.length; i++) rainbowSpillLights[i].intensity = 0;
 
@@ -605,19 +614,35 @@
       const h = window.innerHeight;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      // Conservative camera framing with tested portrait fallback.
-      if (camera.aspect < 0.62) {
-        camera.position.set(0, 1.55, 8.4);
-        cameraTarget.set(0, 0.6, 0);
-      } else if (camera.aspect < 0.86) {
-        camera.position.set(0, 1.62, 7.6);
-        cameraTarget.set(0, 0.62, 0);
-      } else if (camera.aspect < 1.25) {
-        camera.position.set(0, 1.72, 6.95);
-        cameraTarget.set(0, 0.66, 0);
+
+      // Hard, reliable framing profile for iPhone/iPad.
+      if (isAppleMobile) {
+        camera.fov = 52;
+        if (camera.aspect < 0.8) {
+          camera.position.set(0, 1.52, 8.9);   // iPhone portrait
+          cameraTarget.set(0, 0.56, 0);
+        } else if (camera.aspect < 1.35) {
+          camera.position.set(0, 1.58, 7.2);   // iPad portrait / square-ish
+          cameraTarget.set(0, 0.58, 0);
+        } else {
+          camera.position.set(0, 1.62, 6.6);   // iPad/iPhone landscape
+          cameraTarget.set(0, 0.6, 0);
+        }
       } else {
-        camera.position.set(0, 1.82, 6.5);
-        cameraTarget.set(0, 0.72, 0);
+        camera.fov = 42;
+        if (camera.aspect < 0.62) {
+          camera.position.set(0, 1.55, 8.4);
+          cameraTarget.set(0, 0.6, 0);
+        } else if (camera.aspect < 0.86) {
+          camera.position.set(0, 1.62, 7.6);
+          cameraTarget.set(0, 0.62, 0);
+        } else if (camera.aspect < 1.25) {
+          camera.position.set(0, 1.72, 6.95);
+          cameraTarget.set(0, 0.66, 0);
+        } else {
+          camera.position.set(0, 1.82, 6.5);
+          cameraTarget.set(0, 0.72, 0);
+        }
       }
       camera.lookAt(cameraTarget);
       camera.updateProjectionMatrix();
