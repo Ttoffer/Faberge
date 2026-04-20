@@ -122,14 +122,19 @@
     const canvas = document.getElementById("scene");
     const statusEl = document.getElementById("status");
     const resetBtn = document.getElementById("resetBtn");
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const isAppleMobile = isIOS;
     const isDesktop = !isAppleMobile;
+    const getTargetPixelRatio = () => {
+      if (isAppleMobile) {
+        const highEndApple = window.devicePixelRatio >= 3 || Math.max(window.screen.width, window.screen.height) >= 1000;
+        return highEndApple ? 1.75 : 1.2;
+      }
+      return Math.min(window.devicePixelRatio, 2.5);
+    };
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    const isHighEndApple = isAppleMobile && (window.devicePixelRatio >= 3 || Math.max(window.screen.width, window.screen.height) >= 1000);
-    renderer.setPixelRatio(isAppleMobile ? (isHighEndApple ? 1.75 : 1.2) : Math.min(window.devicePixelRatio, 2.5));
+    renderer.setPixelRatio(getTargetPixelRatio());
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const scene = new THREE.Scene();
@@ -209,8 +214,8 @@
       new THREE.PointLight(0xb388ff, 0, 8.5, 2)
     ];
     rainbowSpillLights.forEach((l) => scene.add(l));
-    const activeRainbowCount = isIOS ? 3 : rainbowLights.length;
-    const activeSpillCount = isIOS ? 2 : rainbowSpillLights.length;
+    const activeRainbowCount = isAppleMobile ? 3 : rainbowLights.length;
+    const activeSpillCount = isAppleMobile ? 2 : rainbowSpillLights.length;
 
     // Plinth and stand
     const stand = new THREE.Group();
@@ -751,12 +756,7 @@
       const w = window.innerWidth;
       const h = window.innerHeight;
       renderer.setSize(w, h, false);
-      if (isAppleMobile) {
-        const isHighEndAppleNow = window.devicePixelRatio >= 3 || Math.max(window.screen.width, window.screen.height) >= 1000;
-        renderer.setPixelRatio(isHighEndAppleNow ? 1.75 : 1.2);
-      } else {
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
-      }
+      renderer.setPixelRatio(getTargetPixelRatio());
       camera.aspect = w / h;
 
       // Hard, reliable framing profile for iPhone/iPad.
@@ -796,6 +796,9 @@
 
     let startTime = performance.now();
     let openAmount = 0;
+    const FIRE_HUES = [0.96, 0.67, 0.76]; // red, blue, violet-ish anchors
+    const GLINT_HUE_OFFSETS = [0.0, -0.29, -0.2];
+    const diamondEmissiveColor = new THREE.Color();
 
     function resetAnimation() {
       startTime = performance.now();
@@ -845,15 +848,15 @@
       const facetFlicker = 0.5 + 0.5 * Math.sin(t * 15.5);
       // Restrict to red/blue/violet family for richer "rainbow fire".
       const firePhase = (t * 0.36) % 1;
-      const fireBand = [0.96, 0.67, 0.76]; // red, blue, violet-ish hue anchors
-      const firePos = firePhase * fireBand.length;
-      const f0 = Math.floor(firePos) % fireBand.length;
-      const f1 = (f0 + 1) % fireBand.length;
+      const firePos = firePhase * FIRE_HUES.length;
+      const f0 = Math.floor(firePos) % FIRE_HUES.length;
+      const f1 = (f0 + 1) % FIRE_HUES.length;
       const fMix = firePos - Math.floor(firePos);
-      const fireHueBase = THREE.MathUtils.lerp(fireBand[f0], fireBand[f1], fMix);
+      const fireHueBase = THREE.MathUtils.lerp(FIRE_HUES[f0], FIRE_HUES[f1], fMix);
       const pcHueMod = isDesktop ? (0.08 * Math.sin(t * 3.4) + 0.04 * Math.sin(t * 7.2)) : 0;
       const fireHue = (fireHueBase + pcHueMod + 1) % 1;
-      diamondMat.emissive = new THREE.Color().setHSL(fireHue, 1, 0.72);
+      diamondEmissiveColor.setHSL(fireHue, 1, 0.72);
+      diamondMat.emissive.copy(diamondEmissiveColor);
       const pcFireBoost = isDesktop ? (1.18 + 0.22 * Math.sin(t * 4.8)) : 1.0;
       diamondMat.emissiveIntensity = ringVisible * (0.28 + facetFlicker * 0.64) * pcFireBoost;
 
@@ -877,9 +880,8 @@
         const twinkle = 0.35 + 0.65 * Math.sin(t * (10.5 + i * 2.4) + i * 1.9);
         const pcGlintBoost = isDesktop ? (1.22 + 0.2 * Math.sin(t * (5 + i))) : 1.0;
         diamondGlintLights[i].intensity = ringVisible * (1.6 + twinkle * 4.2) * pcGlintBoost;
-        const offsets = [0.0, -0.29, -0.2]; // red -> blue -> violet accents
         const extraHueJitter = isDesktop ? (0.06 * Math.sin(t * (8.5 + i * 1.4))) : 0;
-        const glintHue = (fireHue + offsets[i] + extraHueJitter + 1) % 1;
+        const glintHue = (fireHue + GLINT_HUE_OFFSETS[i] + extraHueJitter + 1) % 1;
         diamondGlintLights[i].color.setHSL(glintHue, 0.98, 0.74);
         diamondGlintLights[i].position.x += Math.sin(t * 2.1 + i) * 0.00035;
         diamondGlintLights[i].position.z += Math.cos(t * 2.4 + i) * 0.00035;
